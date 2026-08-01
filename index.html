@@ -66,6 +66,25 @@
             gap: 8px;
         }
 
+        .search-lists-box {
+            margin-bottom: 12px;
+        }
+
+        .search-lists-box input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .search-lists-box input:focus {
+            outline: none;
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 2px rgba(26,115,232,0.15);
+        }
+
         .saved-table {
             width: 100%;
             border-collapse: collapse;
@@ -103,6 +122,7 @@
         }
 
         .btn-load { background-color: #1a73e8; }
+        .btn-copy { background-color: #9334e6; }
         .btn-print { background-color: #34a853; }
         .btn-del { background-color: #d93025; }
 
@@ -379,6 +399,9 @@
                 <button class="btn-sm btn-dark" onclick="triggerImportFile()">📤 استيراد البيانات</button>
                 <input type="file" id="importFileInput" accept="*/*, .json, application/json" style="display: none;" onchange="importBackupData(event)">
             </div>
+        </div>
+        <div class="search-lists-box">
+            <input type="text" id="searchListsInput" placeholder="🔍 ابحث حسب الصف أو المادة..." oninput="renderSavedListsTable()">
         </div>
         <table class="saved-table">
             <thead>
@@ -923,9 +946,23 @@
         const tbody = document.getElementById('savedListsTbody');
         tbody.innerHTML = '';
 
-        const keys = Object.keys(lists);
+        const searchInput = document.getElementById('searchListsInput');
+        const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+        let keys = Object.keys(lists);
+
+        if (searchTerm) {
+            keys = keys.filter(id => {
+                const item = lists[id];
+                const gradeClass = (item.gradeClass || '').toLowerCase();
+                const subject = (item.subject || '').toLowerCase();
+                return gradeClass.includes(searchTerm) || subject.includes(searchTerm);
+            });
+        }
+
         if (keys.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #777;">لا توجد قوائم محفوظة حتى الآن.</td></tr>';
+            const msg = searchTerm ? 'لا توجد قوائم مطابقة لبحثك.' : 'لا توجد قوائم محفوظة حتى الآن.';
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #777;">${msg}</td></tr>`;
             return;
         }
 
@@ -940,6 +977,7 @@
                 <td>
                     <div class="action-btns">
                         <button class="btn-sm btn-load" onclick="loadListById('${id}')">فتح/تعديل</button>
+                        <button class="btn-sm btn-copy" onclick="duplicateListById('${id}')">نسخ القائمة</button>
                         <button class="btn-sm btn-print" onclick="loadAndPrintList('${id}')">طباعة</button>
                         <button class="btn-sm btn-del" onclick="deleteListById('${id}')">حذف</button>
                     </div>
@@ -1008,14 +1046,14 @@
         currentLoadedListId = null;
     }
 
-    function loadListById(id) {
+    function loadListById(id, isDuplicate = false) {
         const allLists = getSavedListsFromStorage();
         const item = allLists[id];
         if (!item) return;
 
-        currentLoadedListId = id;
+        currentLoadedListId = isDuplicate ? null : id;
         document.getElementById('listCategory').value = item.listCategory || 'grades';
-        document.getElementById('listTitleToSave').value = item.title;
+        document.getElementById('listTitleToSave').value = isDuplicate ? (item.title + ' - نسخة') : item.title;
         document.getElementById('schoolName').value = item.schoolName || '';
         document.getElementById('examType').value = item.examType || 'نصف السنة';
         document.getElementById('examRound').value = item.examRound || 'الأول';
@@ -1063,6 +1101,10 @@
         }
 
         document.querySelector('.form-grid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function duplicateListById(id) {
+        loadListById(id, true);
     }
 
     function loadAndPrintList(id) {
