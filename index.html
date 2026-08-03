@@ -656,6 +656,22 @@
             const div = document.createElement('div');
             div.className = 'column-item';
             const isAfter = col.isAfterTotal ? '<span style="color:#1557b0; font-size:11px;"> (عمود محدد القياس - بعد المجموع)</span>' : '<span style="color:#28a745; font-size:11px;"> (تقسيم فرعي - مرن التوزيع)</span>';
+
+            let subEditorsHtml = '';
+            if (col.subColumns && col.subColumns.length > 0) {
+                subEditorsHtml = '<div style="margin-right: 20px; margin-top: 6px; border-right: 2px solid #ddd; padding-right: 10px;">';
+                col.subColumns.forEach((sub, subIndex) => {
+                    subEditorsHtml += `
+                        <div style="margin-bottom: 4px;">
+                            <label style="font-size:10px; color:#555;">تقسيمات فرعية لـ "${sub.name}" (اختياري - اتركه فارغًا إن لم تحتجه):</label>
+                            <input type="text" placeholder="مثال: تسميع شفوي, كتابة" value="${sub.leaves ? sub.leaves.join(', ') : ''}"
+                                   onchange="updateLeafColumns(${index}, ${subIndex}, this.value)" style="width:100%;">
+                        </div>
+                    `;
+                });
+                subEditorsHtml += '</div>';
+            }
+
             div.innerHTML = `
                 <div style="display:flex; gap: 10px; margin-bottom: 5px; align-items:center;">
                     <input type="text" placeholder="اسم العمود الرئيسي" value="${col.name}" 
@@ -665,9 +681,10 @@
                 </div>
                 <div style="margin-right: 20px;">
                     <label style="font-size:11px;">الأعمدة الفرعية (افصل بينها بفاصلة ,):</label>
-                    <input type="text" placeholder="مثال: حفظ, تلاوة, معاني" value="${col.subColumns ? col.subColumns.join(', ') : ''}" 
+                    <input type="text" placeholder="مثال: حفظ, تلاوة, معاني" value="${col.subColumns ? col.subColumns.map(s => s.name).join(', ') : ''}" 
                            onchange="updateSubColumns(${index}, this.value)" style="width:100%;">
                 </div>
+                ${subEditorsHtml}
             `;
             container.appendChild(div);
         });
@@ -701,12 +718,29 @@
         generateTable(false);
     }
 
+    function normalizeSubColumns(subColumns) {
+        if (!subColumns) return [];
+        return subColumns.map(s => (typeof s === 'string') ? { name: s, leaves: [] } : { name: s.name, leaves: s.leaves || [] });
+    }
+
     function updateSubColumns(index, value) {
-        if(value.trim() === '') {
+        const oldSubs = customColumns[index].subColumns || [];
+        if (value.trim() === '') {
             customColumns[index].subColumns = [];
         } else {
-            customColumns[index].subColumns = value.split(',').map(item => item.trim());
+            const names = value.split(',').map(item => item.trim());
+            customColumns[index].subColumns = names.map((name, i) => {
+                const existing = oldSubs[i] && oldSubs[i].name === name ? oldSubs[i] : oldSubs.find(s => s.name === name);
+                return { name: name, leaves: existing ? (existing.leaves || []) : [] };
+            });
         }
+        renderColumnInputs();
+        generateTable(false);
+    }
+
+    function updateLeafColumns(colIndex, subIndex, value) {
+        const leaves = value.trim() === '' ? [] : value.split(',').map(item => item.trim());
+        customColumns[colIndex].subColumns[subIndex].leaves = leaves;
         generateTable(false);
     }
 
@@ -787,22 +821,26 @@
 
         // إنشاء رؤوس الجدول
         let hasSubColumns = customColumns.some(col => col.subColumns && col.subColumns.length > 0);
+        let hasLeafColumns = customColumns.some(col => (col.subColumns || []).some(sub => sub.leaves && sub.leaves.length > 0));
+        let headerRows = hasLeafColumns ? 3 : (hasSubColumns ? 2 : 1);
+
         const thead = document.getElementById('tableHead');
         thead.innerHTML = '';
 
         let row1 = document.createElement('tr');
         let row2 = document.createElement('tr');
+        let row3 = document.createElement('tr');
 
         const isEnglishLang = document.getElementById('numberLangSelect').value === 'en';
         const lblSeq = isEnglishLang ? 'No.' : 'ت';
         const lblRecord = isEnglishLang ? 'Reg. No.' : 'رقم القيد';
         const lblStudentName = isEnglishLang ? 'Student Name' : 'اسم التلميذ';
 
-        row1.innerHTML += `<th rowspan="${hasSubColumns ? 2 : 1}" class="seq-col"><span class="main-header-title">${lblSeq}</span></th>`;
+        row1.innerHTML += `<th rowspan="${headerRows}" class="seq-col"><span class="main-header-title">${lblSeq}</span></th>`;
         if (isUnified) {
-            row1.innerHTML += `<th rowspan="${hasSubColumns ? 2 : 1}" class="record-col"><span class="main-header-title">${lblRecord}</span></th>`;
+            row1.innerHTML += `<th rowspan="${headerRows}" class="record-col"><span class="main-header-title">${lblRecord}</span></th>`;
         }
-        row1.innerHTML += `<th rowspan="${hasSubColumns ? 2 : 1}" class="student-name-col"><span class="main-header-title">${lblStudentName}</span></th>`;
+        row1.innerHTML += `<th rowspan="${headerRows}" class="student-name-col"><span class="main-header-title">${lblStudentName}</span></th>`;
 
         let subColInfoMap = [];
 
@@ -810,17 +848,35 @@
             let colNameArabic = convertToArabicNumbers(col.name);
 
             if (col.subColumns && col.subColumns.length > 0) {
-                row1.innerHTML += `<th colspan="${col.subColumns.length}"><span class="main-header-title">${colNameArabic}</span></th>`;
-                col.subColumns.forEach(sub => {
-                    let isTextCol = (sub.trim() === "كتابة");
-                    let isNumTotal = (sub.trim() === "رقماً");
-                    
-                    let cssClass = "";
-                    if (isTextCol) cssClass = "wide-text-col";
-                    else if (isNumTotal) cssClass = "total-col-fixed";
+                let colTotalSpan = col.subColumns.reduce((sum, sub) => sum + ((sub.leaves && sub.leaves.length > 0) ? sub.leaves.length : 1), 0);
+                row1.innerHTML += `<th colspan="${colTotalSpan}"><span class="main-header-title">${colNameArabic}</span></th>`;
 
-                    subColInfoMap.push({ cssClass: cssClass });
-                    row2.innerHTML += `<th class="sub-header-cell ${cssClass}">${convertToArabicNumbers(sub)}</th>`;
+                col.subColumns.forEach(sub => {
+                    let subNameArabic = convertToArabicNumbers(sub.name);
+                    let isTextCol = (sub.name.trim() === "كتابة");
+                    let isNumTotal = (sub.name.trim() === "رقماً");
+
+                    if (sub.leaves && sub.leaves.length > 0) {
+                        row2.innerHTML += `<th colspan="${sub.leaves.length}" class="sub-header-cell">${subNameArabic}</th>`;
+                        sub.leaves.forEach(leaf => {
+                            let leafArabic = convertToArabicNumbers(leaf);
+                            let leafIsTextCol = (leaf.trim() === "كتابة");
+                            let leafIsNumTotal = (leaf.trim() === "رقماً");
+                            let cssClass = "";
+                            if (leafIsTextCol) cssClass = "wide-text-col";
+                            else if (leafIsNumTotal) cssClass = "total-col-fixed";
+
+                            subColInfoMap.push({ cssClass: cssClass });
+                            row3.innerHTML += `<th class="sub-header-cell ${cssClass}">${leafArabic}</th>`;
+                        });
+                    } else {
+                        let cssClass = "";
+                        if (isTextCol) cssClass = "wide-text-col";
+                        else if (isNumTotal) cssClass = "total-col-fixed";
+
+                        subColInfoMap.push({ cssClass: cssClass });
+                        row2.innerHTML += `<th rowspan="${headerRows - 1}" class="sub-header-cell ${cssClass}">${subNameArabic}</th>`;
+                    }
                 });
             } else {
                 let cssClass = "";
@@ -828,13 +884,16 @@
                 else if (col.name === "المجموع") cssClass = "total-col-fixed";
 
                 subColInfoMap.push({ cssClass: cssClass });
-                row1.innerHTML += `<th rowspan="${hasSubColumns ? 2 : 1}" class="sub-header-cell ${cssClass}"><span class="main-header-title">${colNameArabic}</span></th>`;
+                row1.innerHTML += `<th rowspan="${headerRows}" class="sub-header-cell ${cssClass}"><span class="main-header-title">${colNameArabic}</span></th>`;
             }
         });
 
         thead.appendChild(row1);
-        if (hasSubColumns && row2.children.length > 0) {
+        if (headerRows >= 2 && row2.children.length > 0) {
             thead.appendChild(row2);
+        }
+        if (headerRows >= 3 && row3.children.length > 0) {
+            thead.appendChild(row3);
         }
 
         const tbody = document.getElementById('tableBody');
@@ -1072,6 +1131,7 @@
         document.getElementById('pastedNames').value = item.pastedNames || '';
 
         customColumns = item.customColumns || [];
+        customColumns.forEach(col => { col.subColumns = normalizeSubColumns(col.subColumns); });
 
         onListCategoryChange();
         renderColumnInputs();
