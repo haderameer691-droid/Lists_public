@@ -85,6 +85,10 @@
             box-shadow: 0 0 0 2px rgba(26,115,232,0.15);
         }
 
+        .multi-print-bar {
+            margin-bottom: 10px;
+        }
+
         .saved-table {
             width: 100%;
             border-collapse: collapse;
@@ -403,18 +407,22 @@
         <div class="search-lists-box">
             <input type="text" id="searchListsInput" placeholder="🔍 ابحث حسب الصف أو المادة..." oninput="renderSavedListsTable()">
         </div>
+        <div class="multi-print-bar">
+            <button class="btn-sm btn-load" onclick="printSelectedLists()">🖨️ طباعة القوائم المحددة (<span id="selectedCountLabel">0</span>)</button>
+        </div>
         <table class="saved-table">
             <thead>
                 <tr>
+                    <th style="width: 34px;"><input type="checkbox" id="selectAllListsCheckbox" onchange="toggleSelectAllLists(this.checked)"></th>
                     <th>عنوان القائمة</th>
                     <th>الصف / المادة</th>
                     <th>تاريخ الحفظ</th>
-                    <th style="width: 160px;">الإجراءات</th>
+                    <th style="width: 220px;">الإجراءات</th>
                 </tr>
             </thead>
             <tbody id="savedListsTbody">
                 <tr>
-                    <td colspan="4" style="text-align: center; color: #777;">لا توجد قوائم محفوظة حتى الآن.</td>
+                    <td colspan="5" style="text-align: center; color: #777;">لا توجد قوائم محفوظة حتى الآن.</td>
                 </tr>
             </tbody>
         </table>
@@ -620,6 +628,7 @@
 
     let customColumns = [];
     let currentLoadedListId = null;
+    let selectedListIds = new Set();
 
     function onListCategoryChange() {
         const cat = document.getElementById('listCategory').value;
@@ -1005,6 +1014,9 @@
         const tbody = document.getElementById('savedListsTbody');
         tbody.innerHTML = '';
 
+        // إزالة أي معرّفات محددة لم تعد موجودة في التخزين
+        selectedListIds.forEach(id => { if (!lists[id]) selectedListIds.delete(id); });
+
         const searchInput = document.getElementById('searchListsInput');
         const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
 
@@ -1019,9 +1031,11 @@
             });
         }
 
+        updateSelectedCountLabel();
+
         if (keys.length === 0) {
             const msg = searchTerm ? 'لا توجد قوائم مطابقة لبحثك.' : 'لا توجد قوائم محفوظة حتى الآن.';
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #777;">${msg}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #777;">${msg}</td></tr>`;
             return;
         }
 
@@ -1029,7 +1043,9 @@
             const item = lists[id];
             const tr = document.createElement('tr');
             const catBadge = item.listCategory === 'unified' ? ' <span style="color:purple; font-size:11px;">(موحدة)</span>' : '';
+            const isChecked = selectedListIds.has(id) ? 'checked' : '';
             tr.innerHTML = `
+                <td style="text-align:center;"><input type="checkbox" class="list-select-checkbox" data-id="${id}" ${isChecked} onchange="toggleListSelection('${id}', this.checked)"></td>
                 <td><strong>${item.title}</strong>${catBadge}</td>
                 <td>${item.gradeClass || ''} - ${item.subject || 'جميع المواد'}</td>
                 <td>${item.savedDate}</td>
@@ -1044,17 +1060,40 @@
             `;
             tbody.appendChild(tr);
         });
+
+        const selectAllBox = document.getElementById('selectAllListsCheckbox');
+        if (selectAllBox) {
+            selectAllBox.checked = keys.length > 0 && keys.every(id => selectedListIds.has(id));
+        }
     }
 
-    function saveCurrentList() {
-        let titleInput = document.getElementById('listTitleToSave').value.trim();
-        if (!titleInput) {
-            titleInput = prompt("الرجاء إدخال اسم مميز لهذه القائمة:", document.getElementById('gradeClass').value + " - " + document.getElementById('subject').value);
-            if (!titleInput) return;
+    function toggleListSelection(id, checked) {
+        if (checked) selectedListIds.add(id);
+        else selectedListIds.delete(id);
+        updateSelectedCountLabel();
+
+        const selectAllBox = document.getElementById('selectAllListsCheckbox');
+        if (selectAllBox) {
+            const visibleIds = Array.from(document.querySelectorAll('.list-select-checkbox')).map(cb => cb.dataset.id);
+            selectAllBox.checked = visibleIds.length > 0 && visibleIds.every(vid => selectedListIds.has(vid));
         }
+    }
 
-        const id = currentLoadedListId ? currentLoadedListId : 'list_' + Date.now();
+    function toggleSelectAllLists(checked) {
+        document.querySelectorAll('.list-select-checkbox').forEach(cb => {
+            cb.checked = checked;
+            if (checked) selectedListIds.add(cb.dataset.id);
+            else selectedListIds.delete(cb.dataset.id);
+        });
+        updateSelectedCountLabel();
+    }
 
+    function updateSelectedCountLabel() {
+        const label = document.getElementById('selectedCountLabel');
+        if (label) label.innerText = convertToArabicNumbers(selectedListIds.size);
+    }
+
+    function buildCurrentListObject(title) {
         let tableGrades = [];
         const rows = document.querySelectorAll('#tableBody tr');
         rows.forEach(tr => {
@@ -1066,10 +1105,8 @@
         let statsVals = [];
         document.querySelectorAll('#statsTable tbody td').forEach(td => statsVals.push(td.innerText));
 
-        const listObject = {
-            id: id,
-            title: titleInput,
-            savedDate: new Date().toLocaleDateString('ar-IQ') + ' ' + new Date().toLocaleTimeString('ar-IQ', {hour: '2-digit', minute:'2-digit'}),
+        return {
+            title: title,
             listCategory: document.getElementById('listCategory').value,
             schoolName: document.getElementById('schoolName').value,
             examType: document.getElementById('examType').value,
@@ -1091,6 +1128,20 @@
             tableGrades: tableGrades,
             statsVals: statsVals
         };
+    }
+
+    function saveCurrentList() {
+        let titleInput = document.getElementById('listTitleToSave').value.trim();
+        if (!titleInput) {
+            titleInput = prompt("الرجاء إدخال اسم مميز لهذه القائمة:", document.getElementById('gradeClass').value + " - " + document.getElementById('subject').value);
+            if (!titleInput) return;
+        }
+
+        const id = currentLoadedListId ? currentLoadedListId : 'list_' + Date.now();
+
+        const listObject = buildCurrentListObject(titleInput);
+        listObject.id = id;
+        listObject.savedDate = new Date().toLocaleDateString('ar-IQ') + ' ' + new Date().toLocaleTimeString('ar-IQ', {hour: '2-digit', minute:'2-digit'});
 
         const allLists = getSavedListsFromStorage();
         allLists[id] = listObject;
@@ -1105,14 +1156,9 @@
         currentLoadedListId = null;
     }
 
-    function loadListById(id, isDuplicate = false) {
-        const allLists = getSavedListsFromStorage();
-        const item = allLists[id];
-        if (!item) return;
-
-        currentLoadedListId = isDuplicate ? null : id;
+    function applyItemToForm(item, titleOverride) {
         document.getElementById('listCategory').value = item.listCategory || 'grades';
-        document.getElementById('listTitleToSave').value = isDuplicate ? (item.title + ' - نسخة') : item.title;
+        document.getElementById('listTitleToSave').value = (titleOverride !== undefined) ? titleOverride : (item.title || '');
         document.getElementById('schoolName').value = item.schoolName || '';
         document.getElementById('examType').value = item.examType || 'نصف السنة';
         document.getElementById('examRound').value = item.examRound || 'الأول';
@@ -1159,6 +1205,16 @@
                 }
             });
         }
+    }
+
+    function loadListById(id, isDuplicate = false) {
+        const allLists = getSavedListsFromStorage();
+        const item = allLists[id];
+        if (!item) return;
+
+        currentLoadedListId = isDuplicate ? null : id;
+        const titleVal = isDuplicate ? (item.title + ' - نسخة') : item.title;
+        applyItemToForm(item, titleVal);
 
         document.querySelector('.form-grid').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -1172,6 +1228,69 @@
         setTimeout(() => {
             window.print();
         }, 300);
+    }
+
+    function printSelectedLists() {
+        const ids = Array.from(document.querySelectorAll('.list-select-checkbox'))
+            .filter(cb => cb.checked)
+            .map(cb => cb.dataset.id);
+
+        if (ids.length === 0) {
+            alert('الرجاء تحديد قائمة واحدة على الأقل من مربعات الاختيار للطباعة.');
+            return;
+        }
+
+        const allLists = getSavedListsFromStorage();
+
+        // حفظ حالة الحقول الحالية (غير المحفوظة) لاستعادتها بعد انتهاء الطباعة الجماعية
+        const snapshot = buildCurrentListObject(document.getElementById('listTitleToSave').value);
+        const snapshotCurrentId = currentLoadedListId;
+
+        let pagesHtml = '';
+
+        ids.forEach(id => {
+            const item = allLists[id];
+            if (!item) return;
+            applyItemToForm(item);
+            const fontVal = getComputedStyle(document.documentElement).getPropertyValue('--doc-font').trim();
+            const pageEl = document.querySelector('.page');
+            pagesHtml += `<div class="print-page-wrap" style="--doc-font:${fontVal};">${pageEl.outerHTML}</div>`;
+        });
+
+        // استعادة الحالة الأصلية للحقول كما كانت قبل الطباعة الجماعية
+        applyItemToForm(snapshot);
+        currentLoadedListId = snapshotCurrentId;
+
+        const styleTag = document.querySelector('style').outerHTML;
+        const fontLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"], link[rel="preconnect"]')).map(l => l.outerHTML).join('\n');
+
+        const printWin = window.open('', '_blank');
+        printWin.document.write(`
+            <!DOCTYPE html>
+            <html lang="ar" dir="rtl">
+            <head>
+                <meta charset="UTF-8">
+                <title>طباعة القوائم المحددة</title>
+                ${fontLinks}
+                ${styleTag}
+                <style>
+                    .print-page-wrap:not(:last-child) { page-break-after: always; }
+                    body { background: none; padding: 0; }
+                </style>
+            </head>
+            <body>
+                ${pagesHtml}
+            </body>
+            </html>
+        `);
+        printWin.document.close();
+
+        printWin.onload = function () {
+            setTimeout(() => {
+                printWin.focus();
+                printWin.print();
+            }, 400);
+        };
     }
 
     function deleteListById(id) {
