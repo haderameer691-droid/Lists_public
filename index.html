@@ -89,6 +89,87 @@
             margin-bottom: 10px;
         }
 
+        .accordion-group {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            overflow: hidden;
+        }
+
+        .accordion-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #eef3fb;
+            padding: 10px 14px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .accordion-header:hover {
+            background: #e2ebfa;
+        }
+
+        .accordion-arrow {
+            display: inline-block;
+            transition: transform 0.15s;
+            font-size: 12px;
+            color: #1557b0;
+        }
+
+        .accordion-group.open .accordion-arrow {
+            transform: rotate(90deg);
+        }
+
+        .accordion-title {
+            font-weight: bold;
+            color: #1557b0;
+            flex: 1;
+        }
+
+        .accordion-count {
+            font-size: 12px;
+            color: #666;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            padding: 1px 10px;
+        }
+
+        .accordion-body {
+            display: none;
+        }
+
+        .accordion-group.open .accordion-body {
+            display: block;
+        }
+
+        .accordion-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 14px 8px 14px;
+            border-top: 1px solid #eee;
+            flex-wrap: wrap;
+        }
+
+        .accordion-item-title {
+            flex: 1;
+            min-width: 160px;
+        }
+
+        .accordion-item-sub {
+            font-size: 12px;
+            color: #666;
+            min-width: 140px;
+        }
+
+        .accordion-item-date {
+            font-size: 12px;
+            color: #888;
+            min-width: 120px;
+        }
+
         .saved-table {
             width: 100%;
             border-collapse: collapse;
@@ -414,28 +495,25 @@
                 <input type="file" id="importFileInput" accept="*/*, .json, application/json" style="display: none;" onchange="importBackupData(event)">
             </div>
         </div>
-        <div class="search-lists-box">
-            <input type="text" id="searchListsInput" placeholder="🔍 ابحث حسب الصف أو المادة..." oninput="renderSavedListsTable()">
+        <div style="display:flex; gap:10px; margin-bottom: 10px;">
+            <div class="search-lists-box" style="flex:2; margin-bottom:0;">
+                <input type="text" id="searchListsInput" placeholder="🔍 ابحث حسب الصف أو المادة..." oninput="renderSavedListsTable()">
+            </div>
+            <div class="search-lists-box" style="flex:1; margin-bottom:0;">
+                <select id="filterClassSelect" onchange="renderSavedListsTable()">
+                    <option value="">تصفية حسب الصف والشعبة (الكل)</option>
+                </select>
+            </div>
         </div>
-        <div class="multi-print-bar">
+        <div class="multi-print-bar" style="display:flex; justify-content:space-between; align-items:center;">
             <button class="btn-sm btn-load" onclick="printSelectedLists()">🖨️ طباعة القوائم المحددة (<span id="selectedCountLabel">0</span>)</button>
+            <label style="font-size:13px; display:flex; align-items:center; gap:5px;">
+                <input type="checkbox" id="selectAllListsCheckbox" onchange="toggleSelectAllLists(this.checked)"> تحديد كل القوائم الظاهرة
+            </label>
         </div>
-        <table class="saved-table">
-            <thead>
-                <tr>
-                    <th style="width: 34px;"><input type="checkbox" id="selectAllListsCheckbox" onchange="toggleSelectAllLists(this.checked)"></th>
-                    <th>عنوان القائمة</th>
-                    <th>الصف / المادة</th>
-                    <th>تاريخ الحفظ</th>
-                    <th style="width: 220px;">الإجراءات</th>
-                </tr>
-            </thead>
-            <tbody id="savedListsTbody">
-                <tr>
-                    <td colspan="5" style="text-align: center; color: #777;">لا توجد قوائم محفوظة حتى الآن.</td>
-                </tr>
-            </tbody>
-        </table>
+        <div id="savedListsAccordion">
+            <p style="text-align: center; color: #777;">لا توجد قوائم محفوظة حتى الآن.</p>
+        </div>
     </div>
 
     <!-- حفظ قائمة جديدة -->
@@ -477,7 +555,7 @@
         </div>
         <div class="form-group">
             <label>الصف والشعبة</label>
-            <input type="text" id="gradeClass" placeholder="مثال: الأول ( أ )" oninput="generateTable(false)">
+            <input type="text" id="gradeClass" placeholder="مثال: الأول ( أ )" oninput="generateTable(false)" onchange="checkNameBankSuggestion()">
         </div>
         <div class="form-group" id="subjectFormGroup">
             <label>المادة</label>
@@ -562,8 +640,46 @@
 
     <!-- حقل اللصق -->
     <div class="form-group" style="margin-bottom: 20px;">
-        <label id="pastedNamesLabel">استيراد الأسماء أو البيانات (نسخ ولصق من Excel / Word)</label>
+        <div id="nameBankSuggestionBox" style="display:none; background:#fff8e1; border:1px solid #ffc107; border-radius:6px; padding:10px 14px; margin-bottom:10px; font-size:13px;">
+            <span id="nameBankSuggestionText"></span>
+            <button class="btn-sm btn-load" onclick="applyNameBankSuggestion()" style="margin-right:8px;">📥 استيراد الأسماء</button>
+            <button class="btn-sm btn-del" onclick="dismissNameBankSuggestion()">إخفاء</button>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label id="pastedNamesLabel">استيراد الأسماء أو البيانات (نسخ ولصق من Excel / Word)</label>
+            <button class="btn-sm btn-copy" onclick="saveCurrentNamesToBank()">💾 حفظ هذه الأسماء في بنك الصف</button>
+        </div>
         <textarea id="pastedNames" rows="5" placeholder="انسخ من إكسل ولصق هنا مباشرة..." oninput="generateTable(true)"></textarea>
+    </div>
+
+    <!-- بنك أسماء الصفوف -->
+    <div class="saved-lists-section">
+        <div class="saved-lists-header">
+            <h3>🗂️ بنك أسماء الصفوف</h3>
+            <div class="backup-btns">
+                <button class="btn-sm btn-purple" onclick="exportNameBank()">📥 تصدير نسخة احتياطية</button>
+                <button class="btn-sm btn-dark" onclick="triggerImportNameBankFile()">📤 استيراد نسخة احتياطية</button>
+                <input type="file" id="importNameBankFileInput" accept="*/*, .json, application/json" style="display: none;" onchange="importNameBank(event)">
+            </div>
+        </div>
+        <p style="font-size:12px; color:#666; margin: 0 0 10px 0;">
+            احفظ أسماء تلاميذ كل صف وشعبة مرة واحدة هنا (مع رقم القيد إن رغبت)، وسيقترح عليك النظام استيرادها تلقائيًا كلما أنشأت قائمة جديدة لنفس الصف.
+        </p>
+        <table class="saved-table">
+            <thead>
+                <tr>
+                    <th>الصف والشعبة</th>
+                    <th>عدد الأسماء</th>
+                    <th>آخر تحديث</th>
+                    <th style="width: 220px;">الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody id="nameBankTbody">
+                <tr>
+                    <td colspan="4" style="text-align: center; color: #777;">لا يوجد بنك أسماء محفوظ حتى الآن.</td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 
     <!-- إدارة الأعمدة -->
@@ -933,15 +1049,20 @@
             lines.forEach(line => {
                 let cleaned = line.trim();
                 if (cleaned !== '') {
+                    let parts = cleaned.split('\t').map(p => p.trim()).filter(p => p !== '');
                     if (isUnified) {
-                        let parts = cleaned.split('\t').map(p => p.trim()).filter(p => p !== '');
                         if (parts.length >= 2) {
                             parsedItems.push({ record: parts[0], name: parts.slice(1).join(' ') });
                         } else {
                             parsedItems.push({ record: '', name: cleaned });
                         }
                     } else {
-                        parsedItems.push({ record: '', name: cleaned });
+                        // في قائمة الدرجات (غير الموحدة) لا حاجة لرقم القيد: نأخذ آخر عمود (الاسم) فقط ونتجاهل رقم القيد إن وُجد
+                        if (parts.length >= 2) {
+                            parsedItems.push({ record: '', name: parts.slice(1).join(' ') });
+                        } else {
+                            parsedItems.push({ record: '', name: cleaned });
+                        }
                     }
                 }
             });
@@ -1010,21 +1131,203 @@
 
     /* --- إدارة الحفظ والنسخ الاحتياطي --- */
 
+    // ============ بنك أسماء الصفوف ============
+    function getNameBank() {
+        const data = localStorage.getItem('nameBankByClass');
+        return data ? JSON.parse(data) : {};
+    }
+
+    function normalizeClassKey(str) {
+        return (str || '').trim().replace(/\s+/g, ' ');
+    }
+
+    function saveCurrentNamesToBank() {
+        const classKey = normalizeClassKey(document.getElementById('gradeClass').value);
+        if (!classKey) {
+            alert('الرجاء إدخال "الصف والشعبة" أولاً قبل الحفظ في بنك الأسماء.');
+            return;
+        }
+        const text = document.getElementById('pastedNames').value.trim();
+        if (!text) {
+            alert('حقل الأسماء فارغ، لا يوجد ما يُحفظ.');
+            return;
+        }
+
+        const bank = getNameBank();
+        const existing = bank[classKey];
+        if (existing && !confirm(`يوجد بالفعل بنك أسماء محفوظ لصف "${classKey}". هل تريد استبداله بالأسماء الحالية؟`)) {
+            return;
+        }
+
+        bank[classKey] = {
+            text: text,
+            updatedDate: new Date().toLocaleDateString('ar-IQ') + ' ' + new Date().toLocaleTimeString('ar-IQ', {hour: '2-digit', minute:'2-digit'})
+        };
+        localStorage.setItem('nameBankByClass', JSON.stringify(bank));
+        renderNameBankTable();
+        alert(`✓ تم حفظ أسماء صف "${classKey}" في بنك الأسماء بنجاح!`);
+    }
+
+    function checkNameBankSuggestion() {
+        const classKey = normalizeClassKey(document.getElementById('gradeClass').value);
+        const box = document.getElementById('nameBankSuggestionBox');
+        if (!classKey) { box.style.display = 'none'; return; }
+
+        const bank = getNameBank();
+        const entry = bank[classKey];
+        if (!entry) { box.style.display = 'none'; return; }
+
+        const count = entry.text.split('\n').filter(l => l.trim() !== '').length;
+        document.getElementById('nameBankSuggestionText').innerText =
+            `📥 يوجد بنك أسماء محفوظ لصف "${classKey}" (${convertToArabicNumbers(count)} اسم، آخر تحديث: ${entry.updatedDate})`;
+        box.style.display = 'block';
+    }
+
+    function applyNameBankSuggestion() {
+        const classKey = normalizeClassKey(document.getElementById('gradeClass').value);
+        const bank = getNameBank();
+        const entry = bank[classKey];
+        if (!entry) return;
+
+        const currentText = document.getElementById('pastedNames').value.trim();
+        if (currentText && !confirm('حقل الأسماء الحالي يحتوي على بيانات بالفعل. هل تريد استبدالها بأسماء بنك الصف؟')) {
+            return;
+        }
+
+        document.getElementById('pastedNames').value = entry.text;
+        generateTable(true);
+        dismissNameBankSuggestion();
+    }
+
+    function dismissNameBankSuggestion() {
+        document.getElementById('nameBankSuggestionBox').style.display = 'none';
+    }
+
+    function renderNameBankTable() {
+        const bank = getNameBank();
+        const tbody = document.getElementById('nameBankTbody');
+        tbody.innerHTML = '';
+
+        const keys = Object.keys(bank);
+        if (keys.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #777;">لا يوجد بنك أسماء محفوظ حتى الآن.</td></tr>';
+            return;
+        }
+
+        keys.forEach(classKey => {
+            const entry = bank[classKey];
+            const count = entry.text.split('\n').filter(l => l.trim() !== '').length;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${classKey}</strong></td>
+                <td>${convertToArabicNumbers(count)}</td>
+                <td>${entry.updatedDate}</td>
+                <td>
+                    <div class="action-btns">
+                        <button class="btn-sm btn-load" onclick="importNameBankEntryToCurrent('${classKey}')">استيراد للحقل الحالي</button>
+                        <button class="btn-sm btn-del" onclick="deleteNameBankEntry('${classKey}')">حذف</button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function importNameBankEntryToCurrent(classKey) {
+        const bank = getNameBank();
+        const entry = bank[classKey];
+        if (!entry) return;
+
+        const currentText = document.getElementById('pastedNames').value.trim();
+        if (currentText && !confirm('حقل الأسماء الحالي يحتوي على بيانات بالفعل. هل تريد استبدالها بأسماء هذا الصف؟')) {
+            return;
+        }
+
+        document.getElementById('gradeClass').value = classKey;
+        document.getElementById('pastedNames').value = entry.text;
+        generateTable(true);
+        dismissNameBankSuggestion();
+        document.querySelector('.form-grid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function deleteNameBankEntry(classKey) {
+        if (!confirm(`هل تريد حذف بنك أسماء صف "${classKey}" نهائياً؟`)) return;
+        const bank = getNameBank();
+        delete bank[classKey];
+        localStorage.setItem('nameBankByClass', JSON.stringify(bank));
+        renderNameBankTable();
+    }
+
+    function exportNameBank() {
+        const bank = getNameBank();
+        if (Object.keys(bank).length === 0) {
+            alert('لا يوجد بنك أسماء لتصديره كنسخة احتياطية!');
+            return;
+        }
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(bank, null, 2));
+        const downloadAnchor = document.createElement('a');
+        const todayDate = new Date().toISOString().slice(0, 10);
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", `نسخة_احتياطية_بنك_الأسماء_${todayDate}.json`);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+    }
+
+    function triggerImportNameBankFile() {
+        document.getElementById('importNameBankFileInput').click();
+    }
+
+    function importNameBank(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            try {
+                const importedBank = JSON.parse(e.target.result);
+                if (typeof importedBank !== 'object') {
+                    throw new Error('ملف غير صالح');
+                }
+                const currentBank = getNameBank();
+                const mergedBank = { ...currentBank, ...importedBank };
+                localStorage.setItem('nameBankByClass', JSON.stringify(mergedBank));
+                renderNameBankTable();
+                alert('✓ تم استيراد بنك الأسماء بنجاح!');
+            } catch (err) {
+                alert('⚠️ عذراً، الملف المحدد غير صالح كنسخة احتياطية لبنك الأسماء.');
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = '';
+    }
+    // ============ نهاية بنك أسماء الصفوف ============
+
     function getSavedListsFromStorage() {
         const data = localStorage.getItem('allExamLists');
         return data ? JSON.parse(data) : {};
     }
 
+    let openAccordionGroups = new Set();
+
     function renderSavedListsTable() {
         const lists = getSavedListsFromStorage();
-        const tbody = document.getElementById('savedListsTbody');
-        tbody.innerHTML = '';
+        const container = document.getElementById('savedListsAccordion');
 
         // إزالة أي معرّفات محددة لم تعد موجودة في التخزين
         selectedListIds.forEach(id => { if (!lists[id]) selectedListIds.delete(id); });
 
+        // تحديث قائمة التصفية بالصفوف الموجودة فعليًا
+        const filterSelect = document.getElementById('filterClassSelect');
+        const previousFilterVal = filterSelect.value;
+        const allClassKeys = [...new Set(Object.values(lists).map(item => item.gradeClass || 'غير محدد'))].sort();
+        filterSelect.innerHTML = '<option value="">تصفية حسب الصف والشعبة (الكل)</option>' +
+            allClassKeys.map(c => `<option value="${c}">${c}</option>`).join('');
+        if (allClassKeys.includes(previousFilterVal)) filterSelect.value = previousFilterVal;
+
         const searchInput = document.getElementById('searchListsInput');
         const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
+        const classFilter = filterSelect.value;
 
         let keys = Object.keys(lists);
 
@@ -1037,39 +1340,103 @@
             });
         }
 
+        if (classFilter) {
+            keys = keys.filter(id => (lists[id].gradeClass || 'غير محدد') === classFilter);
+        }
+
         updateSelectedCountLabel();
 
         if (keys.length === 0) {
-            const msg = searchTerm ? 'لا توجد قوائم مطابقة لبحثك.' : 'لا توجد قوائم محفوظة حتى الآن.';
-            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #777;">${msg}</td></tr>`;
+            const msg = (searchTerm || classFilter) ? 'لا توجد قوائم مطابقة لبحثك.' : 'لا توجد قوائم محفوظة حتى الآن.';
+            container.innerHTML = `<p style="text-align: center; color: #777;">${msg}</p>`;
             return;
         }
 
+        // تجميع القوائم حسب الصف والشعبة
+        const groups = {};
         keys.forEach(id => {
             const item = lists[id];
-            const tr = document.createElement('tr');
-            const catBadge = item.listCategory === 'unified' ? ' <span style="color:purple; font-size:11px;">(موحدة)</span>' : '';
-            const isChecked = selectedListIds.has(id) ? 'checked' : '';
-            tr.innerHTML = `
-                <td style="text-align:center;"><input type="checkbox" class="list-select-checkbox" data-id="${id}" ${isChecked} onchange="toggleListSelection('${id}', this.checked)"></td>
-                <td><strong>${item.title}</strong>${catBadge}</td>
-                <td>${item.gradeClass || ''} - ${item.subject || 'جميع المواد'}</td>
-                <td>${item.savedDate}</td>
-                <td>
-                    <div class="action-btns">
-                        <button class="btn-sm btn-load" onclick="loadListById('${id}')">فتح/تعديل</button>
-                        <button class="btn-sm btn-copy" onclick="duplicateListById('${id}')">نسخ القائمة</button>
-                        <button class="btn-sm btn-print" onclick="loadAndPrintList('${id}')">طباعة</button>
-                        <button class="btn-sm btn-del" onclick="deleteListById('${id}')">حذف</button>
+            const groupKey = item.gradeClass || 'غير محدد';
+            if (!groups[groupKey]) groups[groupKey] = [];
+            groups[groupKey].push({ id, item });
+        });
+
+        const groupKeysSorted = Object.keys(groups).sort();
+
+        // إن كان هناك بحث نصي أو تصفية فعّالة، افتح كل المجموعات الظاهرة تلقائيًا
+        const forceOpen = !!(searchTerm || classFilter);
+
+        container.innerHTML = '';
+        groupKeysSorted.forEach(groupKey => {
+            const groupItems = groups[groupKey];
+            const isOpen = forceOpen || openAccordionGroups.has(groupKey);
+
+            const groupDiv = document.createElement('div');
+            groupDiv.className = 'accordion-group' + (isOpen ? ' open' : '');
+            groupDiv.dataset.groupKey = groupKey;
+
+            const allGroupChecked = groupItems.every(({ id }) => selectedListIds.has(id));
+
+            let itemsHtml = '';
+            groupItems.forEach(({ id, item }) => {
+                const catBadge = item.listCategory === 'unified' ? ' <span style="color:purple; font-size:11px;">(موحدة)</span>' : '';
+                const isChecked = selectedListIds.has(id) ? 'checked' : '';
+                itemsHtml += `
+                    <div class="accordion-item">
+                        <input type="checkbox" class="list-select-checkbox" data-id="${id}" ${isChecked} onchange="toggleListSelection('${id}', this.checked)">
+                        <div class="accordion-item-title"><strong>${item.title}</strong>${catBadge}</div>
+                        <div class="accordion-item-sub">${item.subject || 'جميع المواد'}</div>
+                        <div class="accordion-item-date">${item.savedDate}</div>
+                        <div class="action-btns">
+                            <button class="btn-sm btn-load" onclick="loadListById('${id}')">فتح/تعديل</button>
+                            <button class="btn-sm btn-copy" onclick="duplicateListById('${id}')">نسخ القائمة</button>
+                            <button class="btn-sm btn-print" onclick="loadAndPrintList('${id}')">طباعة</button>
+                            <button class="btn-sm btn-del" onclick="deleteListById('${id}')">حذف</button>
+                        </div>
                     </div>
-                </td>
+                `;
+            });
+
+            groupDiv.innerHTML = `
+                <div class="accordion-header" onclick="toggleAccordionGroup(event, '${groupKey}')">
+                    <span class="accordion-arrow">◀</span>
+                    <input type="checkbox" onclick="event.stopPropagation();" onchange="toggleGroupSelectAll('${groupKey}', this.checked)" ${allGroupChecked ? 'checked' : ''}>
+                    <span class="accordion-title">${groupKey}</span>
+                    <span class="accordion-count">${convertToArabicNumbers(groupItems.length)} قائمة</span>
+                </div>
+                <div class="accordion-body">${itemsHtml}</div>
             `;
-            tbody.appendChild(tr);
+
+            container.appendChild(groupDiv);
         });
 
         const selectAllBox = document.getElementById('selectAllListsCheckbox');
         if (selectAllBox) {
             selectAllBox.checked = keys.length > 0 && keys.every(id => selectedListIds.has(id));
+        }
+    }
+
+    function toggleAccordionGroup(event, groupKey) {
+        const groupDiv = event.currentTarget.closest('.accordion-group');
+        const isOpen = groupDiv.classList.toggle('open');
+        if (isOpen) openAccordionGroups.add(groupKey);
+        else openAccordionGroups.delete(groupKey);
+    }
+
+    function toggleGroupSelectAll(groupKey, checked) {
+        const groupDiv = document.querySelector(`.accordion-group[data-group-key="${CSS.escape(groupKey)}"]`);
+        if (!groupDiv) return;
+        groupDiv.querySelectorAll('.list-select-checkbox').forEach(cb => {
+            cb.checked = checked;
+            if (checked) selectedListIds.add(cb.dataset.id);
+            else selectedListIds.delete(cb.dataset.id);
+        });
+        updateSelectedCountLabel();
+
+        const selectAllBox = document.getElementById('selectAllListsCheckbox');
+        if (selectAllBox) {
+            const visibleIds = Array.from(document.querySelectorAll('.list-select-checkbox')).map(cb => cb.dataset.id);
+            selectAllBox.checked = visibleIds.length > 0 && visibleIds.every(vid => selectedListIds.has(vid));
         }
     }
 
@@ -1083,6 +1450,19 @@
             const visibleIds = Array.from(document.querySelectorAll('.list-select-checkbox')).map(cb => cb.dataset.id);
             selectAllBox.checked = visibleIds.length > 0 && visibleIds.every(vid => selectedListIds.has(vid));
         }
+
+        // تحديث حالة مربع "تحديد الكل" الخاص بالمجموعة التي ينتمي إليها هذا العنصر
+        const cb = document.querySelector(`.list-select-checkbox[data-id="${id}"]`);
+        if (cb) {
+            const groupDiv = cb.closest('.accordion-group');
+            if (groupDiv) {
+                const groupBox = groupDiv.querySelector('.accordion-header > input[type="checkbox"]');
+                const groupCheckboxes = groupDiv.querySelectorAll('.list-select-checkbox');
+                if (groupBox) {
+                    groupBox.checked = Array.from(groupCheckboxes).every(c => selectedListIds.has(c.dataset.id));
+                }
+            }
+        }
     }
 
     function toggleSelectAllLists(checked) {
@@ -1091,6 +1471,7 @@
             if (checked) selectedListIds.add(cb.dataset.id);
             else selectedListIds.delete(cb.dataset.id);
         });
+        document.querySelectorAll('.accordion-header > input[type="checkbox"]').forEach(cb => cb.checked = checked);
         updateSelectedCountLabel();
     }
 
@@ -1330,6 +1711,7 @@
         document.getElementById('pastedNames').value = '';
         document.getElementById('fontFamilySelect').value = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
         document.getElementById('numberLangSelect').value = 'ar';
+        dismissNameBankSuggestion();
 
         // 2. تفريغ التقسيمات والأعمدة لادخال جديد
         customColumns = [];
@@ -1395,6 +1777,7 @@
     window.onload = function() {
         createNewBlankList();
         renderSavedListsTable();
+        renderNameBankTable();
     };
 </script>
 
