@@ -384,6 +384,11 @@
         localStorage.setItem('examSystem_vFakhamaPrintSave', JSON.stringify(dataToSave));
     }
 
+    function saveHallState() {
+        const hallState = { parsedData: parsedData, sectorConfigs: sectorConfigs };
+        localStorage.setItem('examSystem_vFakhamaHallState', JSON.stringify(hallState));
+    }
+
     window.onload = function() {
         const saved = localStorage.getItem('examSystem_vFakhamaPrintSave');
         if (saved) {
@@ -398,6 +403,16 @@
             document.getElementById('academicYear').value = data.academicYear;
             document.getElementById('schoolManager').value = data.schoolManager;
             toggleInputLabel();
+        }
+
+        const savedHalls = localStorage.getItem('examSystem_vFakhamaHallState');
+        if (savedHalls) {
+            const hallState = JSON.parse(savedHalls);
+            parsedData = hallState.parsedData || [];
+            sectorConfigs = hallState.sectorConfigs || {};
+            if (parsedData.length > 0) {
+                renderHalls();
+            }
         }
     };
 
@@ -581,6 +596,8 @@
             outputArea.appendChild(hallCard);
             currentHallNumber++;
         }
+
+        saveHallState();
     }
     
     function addSeatLeft(sectorNum) {
@@ -727,6 +744,7 @@
             document.getElementById('studentData').value = '';
             document.getElementById('outputArea').innerHTML = '';
             localStorage.removeItem('examSystem_vFakhamaPrintSave');
+            localStorage.removeItem('examSystem_vFakhamaHallState');
             sectorConfigs = {};
             parsedData = [];
         }
