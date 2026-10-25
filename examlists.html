@@ -170,6 +170,35 @@
             min-width: 120px;
         }
 
+        /* ===== ترتيب القوائم بالسحب ===== */
+        .drag-handle {
+            cursor: grab;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            font-size: 20px;
+            line-height: 1;
+            color: #888;
+            padding: 4px 6px;
+            border-radius: 4px;
+        }
+        .drag-handle:hover { background: #e2ebfa; color: #1557b0; }
+        .drag-handle:active { cursor: grabbing; }
+        .accordion-item.dragging {
+            background: #fff8e1;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            position: relative;
+            z-index: 5;
+        }
+        .btn-move { background-color: #5f6368; padding: 4px 7px; }
+        .accordion-group.dragging {
+            box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 6;
+            background: #fff8e1;
+        }
+        .accordion-group.dragging .accordion-header { background: #fff3c4; }
+
         .saved-table {
             width: 100%;
             border-collapse: collapse;
@@ -559,7 +588,10 @@
             </div>
         </div>
         <div class="multi-print-bar" style="display:flex; justify-content:space-between; align-items:center;">
-            <button class="btn-sm btn-load" onclick="printSelectedLists()">🖨️ طباعة القوائم المحددة (<span id="selectedCountLabel">0</span>)</button>
+            <div style="display:flex; gap:8px;">
+                <button class="btn-sm btn-load" onclick="printSelectedLists()">🖨️ طباعة القوائم المحددة (<span id="selectedCountLabel">0</span>)</button>
+                <button class="btn-sm btn-dark" onclick="resetGroupOrder()" title="إعادة ترتيب الصفوف تلقائيًا: الأول ثم الثاني ثم الثالث...">↕️ ترتيب الصفوف تلقائيًا</button>
+            </div>
             <label style="font-size:13px; display:flex; align-items:center; gap:5px;">
                 <input type="checkbox" id="selectAllListsCheckbox" onchange="toggleSelectAllLists(this.checked)"> تحديد كل القوائم الظاهرة
             </label>
@@ -1404,7 +1436,7 @@
         // تحديث قائمة التصفية بالصفوف الموجودة فعليًا
         const filterSelect = document.getElementById('filterClassSelect');
         const previousFilterVal = filterSelect.value;
-        const allClassKeys = [...new Set(Object.values(lists).map(item => item.gradeClass || 'غير محدد'))].sort();
+        const allClassKeys = sortGroupKeys([...new Set(Object.values(lists).map(item => item.gradeClass || 'غير محدد'))]);
         filterSelect.innerHTML = '<option value="">تصفية حسب الصف والشعبة (الكل)</option>' +
             allClassKeys.map(c => `<option value="${c}">${c}</option>`).join('');
         if (allClassKeys.includes(previousFilterVal)) filterSelect.value = previousFilterVal;
@@ -1445,7 +1477,7 @@
             groups[groupKey].push({ id, item });
         });
 
-        const groupKeysSorted = Object.keys(groups).sort();
+        const groupKeysSorted = sortGroupKeys(Object.keys(groups));
 
         // إن كان هناك بحث نصي أو تصفية فعّالة، افتح كل المجموعات الظاهرة تلقائيًا
         const forceOpen = !!(searchTerm || classFilter);
@@ -1466,12 +1498,15 @@
                 const catBadge = item.listCategory === 'unified' ? ' <span style="color:purple; font-size:11px;">(موحدة)</span>' : '';
                 const isChecked = selectedListIds.has(id) ? 'checked' : '';
                 itemsHtml += `
-                    <div class="accordion-item">
+                    <div class="accordion-item" data-id="${id}">
+                        <span class="drag-handle" title="اسحب لإعادة الترتيب" onpointerdown="startListDrag(event)">⠿</span>
                         <input type="checkbox" class="list-select-checkbox" data-id="${id}" ${isChecked} onchange="toggleListSelection('${id}', this.checked)">
                         <div class="accordion-item-title"><strong>${item.title}</strong>${catBadge}</div>
                         <div class="accordion-item-sub">${item.subject || 'جميع المواد'}</div>
                         <div class="accordion-item-date">${item.savedDate}</div>
                         <div class="action-btns">
+                            <button class="btn-sm btn-move" title="نقل للأعلى" onclick="moveListItem('${id}', -1)">▲</button>
+                            <button class="btn-sm btn-move" title="نقل للأسفل" onclick="moveListItem('${id}', 1)">▼</button>
                             <button class="btn-sm btn-load" onclick="loadListById('${id}')">فتح/تعديل</button>
                             <button class="btn-sm btn-copy" onclick="duplicateListById('${id}')">نسخ القائمة</button>
                             <button class="btn-sm btn-print" onclick="loadAndPrintList('${id}')">طباعة</button>
@@ -1483,10 +1518,13 @@
 
             groupDiv.innerHTML = `
                 <div class="accordion-header" onclick="toggleAccordionGroup(event, '${groupKey}')">
+                    <span class="drag-handle" title="اسحب لإعادة ترتيب الصفوف" onclick="event.stopPropagation()" onpointerdown="startGroupDrag(event)">⠿</span>
                     <span class="accordion-arrow">◀</span>
                     <input type="checkbox" onclick="event.stopPropagation();" onchange="toggleGroupSelectAll('${groupKey}', this.checked)" ${allGroupChecked ? 'checked' : ''}>
                     <span class="accordion-title">${groupKey}</span>
                     <span class="accordion-count">${convertToArabicNumbers(groupItems.length)} قائمة</span>
+                    <button class="btn-sm btn-move" title="نقل الصف للأعلى" onclick="event.stopPropagation(); moveGroup('${groupKey}', -1)">▲</button>
+                    <button class="btn-sm btn-move" title="نقل الصف للأسفل" onclick="event.stopPropagation(); moveGroup('${groupKey}', 1)">▼</button>
                 </div>
                 <div class="accordion-body">${itemsHtml}</div>
             `;
@@ -1499,6 +1537,222 @@
             selectAllBox.checked = keys.length > 0 && keys.every(id => selectedListIds.has(id));
         }
     }
+
+    // ============ ترتيب القوائم (سحب / أسهم) ============
+    // يحفظ الترتيب الجديد لقوائم مجموعة واحدة مع إبقاء بقية القوائم في أماكنها
+    function persistGroupOrder(orderedIds) {
+        const all = getSavedListsFromStorage();
+        const keys = Object.keys(all);
+        const inGroup = new Set(orderedIds);
+        const slots = [];
+        keys.forEach((k, i) => { if (inGroup.has(k)) slots.push(i); });
+        const newKeys = keys.slice();
+        slots.forEach((slot, i) => { newKeys[slot] = orderedIds[i]; });
+        const out = {};
+        newKeys.forEach(k => { out[k] = all[k]; });
+        localStorage.setItem('allExamLists', JSON.stringify(out));
+    }
+
+    function getBodyOrder(body) {
+        return Array.from(body.querySelectorAll(':scope > .accordion-item')).map(el => el.dataset.id);
+    }
+
+    function moveListItem(id, dir) {
+        const item = document.querySelector(`.accordion-item[data-id="${CSS.escape(id)}"]`);
+        if (!item) return;
+        const body = item.parentElement;
+        if (dir < 0 && item.previousElementSibling) {
+            body.insertBefore(item, item.previousElementSibling);
+        } else if (dir > 0 && item.nextElementSibling) {
+            body.insertBefore(item.nextElementSibling, item);
+        } else {
+            return;
+        }
+        persistGroupOrder(getBodyOrder(body));
+        item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
+    function startListDrag(e) {
+        if (e.button !== undefined && e.button !== 0) return;
+        e.preventDefault();
+        const handle = e.currentTarget;
+        const item = handle.closest('.accordion-item');
+        const body = item.parentElement;
+        item.classList.add('dragging');
+        handle.setPointerCapture(e.pointerId);
+
+        const onMove = (ev) => {
+            const y = ev.clientY;
+            const others = Array.from(body.querySelectorAll(':scope > .accordion-item')).filter(el => el !== item);
+            let target = null;
+            for (const el of others) {
+                const r = el.getBoundingClientRect();
+                if (y < r.top + r.height / 2) { target = el; break; }
+            }
+            if (target) {
+                if (item.nextElementSibling !== target) body.insertBefore(item, target);
+            } else if (body.lastElementChild !== item) {
+                body.appendChild(item);
+            }
+            // تمرير تلقائي للصفحة عند الاقتراب من حافة الشاشة
+            if (y < 60) window.scrollBy(0, -15);
+            else if (y > window.innerHeight - 60) window.scrollBy(0, 15);
+        };
+
+        const onEnd = () => {
+            handle.removeEventListener('pointermove', onMove);
+            handle.removeEventListener('pointerup', onEnd);
+            handle.removeEventListener('pointercancel', onEnd);
+            item.classList.remove('dragging');
+            persistGroupOrder(getBodyOrder(body));
+        };
+
+        handle.addEventListener('pointermove', onMove);
+        handle.addEventListener('pointerup', onEnd);
+        handle.addEventListener('pointercancel', onEnd);
+    }
+
+    // ---------- ترتيب الصفوف (المجموعات) حسب المرحلة ----------
+    function normalizeArabic(t) {
+        return String(t || '')
+            .replace(/[\u064B-\u0652\u0640]/g, '')
+            .replace(/[أإآٱ]/g, 'ا')
+            .replace(/ة/g, 'ه')
+            .replace(/ى/g, 'ي')
+            .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function gradeRank(name) {
+        const t = normalizeArabic(name);
+        const words = [
+            ['حادي عشر', 11], ['ثاني عشر', 12], ['ثالث عشر', 13],
+            ['اول', 1], ['ثاني', 2], ['ثالث', 3], ['رابع', 4], ['خامس', 5],
+            ['سادس', 6], ['سابع', 7], ['ثامن', 8], ['تاسع', 9], ['عاشر', 10]
+        ];
+        let rank = null;
+        const re = /(?:^|\s)(?:لل|ال)?(حادي عشر|ثاني عشر|ثالث عشر|اول|ثاني|ثالث|رابع|خامس|سادس|سابع|ثامن|تاسع|عاشر)/;
+        const m = t.match(re);
+        if (m) {
+            rank = words.find(w => w[0] === m[1])[1];
+        } else {
+            const d = t.match(/\d+/);
+            if (d && +d[0] >= 1 && +d[0] <= 13) rank = +d[0];
+        }
+        if (rank === null) {
+            if (/تمهيدي|روضه|حضانه/.test(t)) return 0;
+            return 999;
+        }
+        let stage = 0;
+        if (/متوسط/.test(t)) stage = 20;
+        else if (/اعدادي|ثانوي/.test(t)) stage = 30;
+        return stage + rank;
+    }
+
+    function defaultGroupCompare(a, b) {
+        const d = gradeRank(a) - gradeRank(b);
+        if (d !== 0) return d;
+        return a.localeCompare(b, 'ar', { numeric: true });
+    }
+
+    function getSavedGroupOrder() {
+        try {
+            const v = JSON.parse(localStorage.getItem('examGroupOrder') || '[]');
+            return Array.isArray(v) ? v : [];
+        } catch (e) { return []; }
+    }
+
+    // الترتيب اليدوي المحفوظ أولًا، والصفوف الجديدة تُدرج بحسب مرحلتها
+    function sortGroupKeys(keys) {
+        const saved = getSavedGroupOrder();
+        const present = new Set(keys);
+        const result = saved.filter(k => present.has(k));
+        const savedSet = new Set(saved);
+        keys.filter(k => !savedSet.has(k)).sort(defaultGroupCompare).forEach(k => {
+            const r = gradeRank(k);
+            const idx = result.findIndex(x => gradeRank(x) > r);
+            if (idx === -1) result.push(k); else result.splice(idx, 0, k);
+        });
+        return result;
+    }
+
+    function persistGroupKeyOrder(visibleOrder) {
+        const lists = getSavedListsFromStorage();
+        const allKeys = [...new Set(Object.values(lists).map(item => item.gradeClass || 'غير محدد'))];
+        const full = sortGroupKeys(allKeys);
+        const visibleSet = new Set(visibleOrder);
+        const slots = [];
+        full.forEach((k, i) => { if (visibleSet.has(k)) slots.push(i); });
+        slots.forEach((slot, i) => { full[slot] = visibleOrder[i]; });
+        localStorage.setItem('examGroupOrder', JSON.stringify(full));
+    }
+
+    function getContainerGroupOrder() {
+        const container = document.getElementById('savedListsAccordion');
+        return Array.from(container.querySelectorAll(':scope > .accordion-group')).map(g => g.dataset.groupKey);
+    }
+
+    function moveGroup(groupKey, dir) {
+        const g = document.querySelector(`.accordion-group[data-group-key="${CSS.escape(groupKey)}"]`);
+        if (!g) return;
+        const parent = g.parentElement;
+        if (dir < 0 && g.previousElementSibling) parent.insertBefore(g, g.previousElementSibling);
+        else if (dir > 0 && g.nextElementSibling) parent.insertBefore(g.nextElementSibling, g);
+        else return;
+        persistGroupKeyOrder(getContainerGroupOrder());
+        g.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
+    function resetGroupOrder() {
+        if (!confirm('إعادة ترتيب الصفوف تلقائيًا حسب المرحلة (الأول ثم الثاني ثم الثالث...)؟')) return;
+        localStorage.removeItem('examGroupOrder');
+        renderSavedListsTable();
+    }
+
+    function startGroupDrag(e) {
+        if (e.button !== undefined && e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const handle = e.currentTarget;
+        const group = handle.closest('.accordion-group');
+        const container = group.parentElement;
+        const wasOpen = group.classList.contains('open');
+        group.classList.remove('open');   // طيّ المجموعة أثناء السحب لتسهيل الإفلات
+        group.classList.add('dragging');
+        handle.setPointerCapture(e.pointerId);
+
+        const onMove = (ev) => {
+            const y = ev.clientY;
+            const others = Array.from(container.querySelectorAll(':scope > .accordion-group')).filter(el => el !== group);
+            let target = null;
+            for (const el of others) {
+                const r = el.getBoundingClientRect();
+                if (y < r.top + r.height / 2) { target = el; break; }
+            }
+            if (target) {
+                if (group.nextElementSibling !== target) container.insertBefore(group, target);
+            } else if (container.lastElementChild !== group) {
+                container.appendChild(group);
+            }
+            if (y < 60) window.scrollBy(0, -15);
+            else if (y > window.innerHeight - 60) window.scrollBy(0, 15);
+        };
+
+        const onEnd = () => {
+            handle.removeEventListener('pointermove', onMove);
+            handle.removeEventListener('pointerup', onEnd);
+            handle.removeEventListener('pointercancel', onEnd);
+            group.classList.remove('dragging');
+            if (wasOpen) group.classList.add('open');
+            persistGroupKeyOrder(getContainerGroupOrder());
+        };
+
+        handle.addEventListener('pointermove', onMove);
+        handle.addEventListener('pointerup', onEnd);
+        handle.addEventListener('pointercancel', onEnd);
+    }
+    // ============ نهاية ترتيب القوائم ============
 
     function toggleAccordionGroup(event, groupKey) {
         const groupDiv = event.currentTarget.closest('.accordion-group');
