@@ -49,6 +49,7 @@
             position: relative; /* أساسي لتثبيت الإطار داخله */
             box-sizing: border-box;
             z-index: 2;
+            --font-scale: 1; /* معامل تكبير/تصغير حجم الخط العام - يُضبط عبر قائمة "حجم الخط" */
         }
 
         /* اتجاه الصفحة: عمودي (افتراضي) وأفقي - يُطبَّق على الشاشة والطباعة معاً لضمان تطابق المعاينة مع المطبوع */
@@ -183,7 +184,7 @@
         .header-right h3 {
             margin: 0;
             padding: 0;
-            font-size: 16px;
+            font-size: calc(16px * var(--font-scale, 1));
             font-weight: 800;
             line-height: 1.4;
             color: #000;
@@ -194,7 +195,7 @@
             outline: none;
             font-family: inherit;
             font-weight: 800;
-            font-size: 15px;
+            font-size: calc(15px * var(--font-scale, 1));
             width: 170px;
             padding: 0;
             margin-top: 5px;
@@ -215,7 +216,7 @@
             border: none;
             border-bottom: 1.5px dotted #000;
             text-align: center;
-            font-size: 14px;
+            font-size: calc(14px * var(--font-scale, 1));
             font-family: inherit;
             font-weight: 800;
             background: transparent;
@@ -232,7 +233,7 @@
         .header-left p {
             margin: 0;
             padding: 0;
-            font-size: 15px;
+            font-size: calc(15px * var(--font-scale, 1));
             font-weight: 800;
             display: flex;
             align-items: center;
@@ -247,7 +248,7 @@
             outline: none;
             font-family: inherit;
             font-weight: 800;
-            font-size: 15px;
+            font-size: calc(15px * var(--font-scale, 1));
             background: transparent;
             padding: 0;
             color: #000;
@@ -304,7 +305,7 @@
             border: 2.5px solid #000000;
             padding: 8px 4px;
             text-align: center;
-            font-size: 14px;
+            font-size: calc(14px * var(--font-scale, 1));
             font-weight: 800;
             color: #000000;
             word-wrap: break-word;
@@ -316,7 +317,7 @@
         }
         th.date-col, td.date-col {
             width: 17%;
-            font-size: 20px !important; /* تكبير خط رأس عمود التاريخ */
+            font-size: calc(20px * var(--font-scale, 1)) !important; /* تكبير خط رأس عمود التاريخ */
         }
 
         th {
@@ -349,13 +350,13 @@
         }
 
         .day-select {
-            font-size: 13px;
+            font-size: calc(13px * var(--font-scale, 1));
             font-weight: 800;
         }
 
         /* تكبير مدخل التاريخ إلى 20 بكسل بخط عريض */
         .row-date-input {
-            font-size: 20px !important;
+            font-size: calc(20px * var(--font-scale, 1)) !important;
             font-weight: 900 !important;
             flex: 1;
             min-width: 0;
@@ -394,7 +395,7 @@
             color: #000;
             resize: none; /* إلغاء مقبض السحب اليدوي ليعتمد على التمدد التلقائي */
             background: transparent;
-            font-size: 14px;
+            font-size: calc(14px * var(--font-scale, 1));
             line-height: 1.6;
             box-sizing: border-box;
             overflow-y: hidden; /* إخفاء شريط التمرير أثناء التمدد */
@@ -418,7 +419,7 @@
         /* تقليص المسافة وتكبير مسمى مدير المدرسة */
         .director-title {
             font-weight: 900;
-            font-size: 16px;
+            font-size: calc(16px * var(--font-scale, 1));
             margin-bottom: 12px !important; 
         }
         /* تكبير اسم المدير إلى 20 بكسل وبخط عريض جداً وبارز */
@@ -429,7 +430,7 @@
             width: 100%;
             padding-top: 5px;
             font-weight: 900 !important;
-            font-size: 20px !important;
+            font-size: calc(20px * var(--font-scale, 1)) !important;
         }
 
         /* ======================================================== */
@@ -510,7 +511,7 @@
                 -webkit-appearance: none;
                 -moz-appearance: none;
                 background: transparent;
-                font-size: 13px;
+                font-size: calc(13px * var(--font-scale, 1));
                 color: #000000;
                 padding: 0;
                 text-align: center;
@@ -522,18 +523,18 @@
                 -webkit-appearance: none;
                 -moz-appearance: none;
                 background: transparent;
-                font-size: 20px !important;
+                font-size: calc(20px * var(--font-scale, 1)) !important;
                 font-weight: 900 !important;
                 color: #000000;
                 padding: 0;
                 text-align: center;
             }
             th, td {
-                font-size: 13px;
+                font-size: calc(13px * var(--font-scale, 1));
                 padding: 6px 3px; 
             }
             th.date-col, td.date-col {
-                font-size: 20px !important; /* فرض المقاس الكبير لعمود التاريخ بالكامل عند الطباعة */
+                font-size: calc(20px * var(--font-scale, 1)) !important; /* فرض المقاس الكبير لعمود التاريخ بالكامل عند الطباعة */
             }
             th {
                 -webkit-print-color-adjust: exact;
@@ -545,7 +546,7 @@
             }
             /* الحفاظ على حجم خط اسم المدير الكبير عند الطباعة */
             .director-name-line {
-                font-size: 20px !important;
+                font-size: calc(20px * var(--font-scale, 1)) !important;
                 font-weight: 900 !important;
             }
         }
@@ -598,6 +599,18 @@
                 <option value="Almarai">🗜️ خط الماراي (مضغوط - يوفّر مساحة)</option>
                 <option value="Mada">🗜️ خط مدى (مضغوط جداً - أقصى توفير)</option>
                 <option value="Elmessiri">🗜️ خط المسيري (مضغوط وأنيق)</option>
+            </select>
+        </div>
+
+        <!-- اختيار حجم الخط (تكبير/تصغير نسبي لكل نصوص الصفحة دفعة واحدة) -->
+        <div class="selector-box">
+            <label for="fontSizeSelect">📏 حجم الخط:</label>
+            <select id="fontSizeSelect" class="theme-select" onchange="applyFontSize(this.value)">
+                <option value="0.8">صغير جداً</option>
+                <option value="0.9">صغير</option>
+                <option value="1" selected>متوسط (افتراضي)</option>
+                <option value="1.15">كبير</option>
+                <option value="1.3">كبير جداً</option>
             </select>
         </div>
 
@@ -753,6 +766,7 @@
     let currentFont = "Cairo"; // الخط الافتراضي
     let currentPageBorderStyle = "double"; // نمط حد الصفحة الافتراضي
     let currentPrintOrientation = "portrait"; // اتجاه ورقة الطباعة الافتراضي
+    let currentFontSize = "1"; // معامل حجم الخط الافتراضي (1 = متوسط)
 
     // دالة ترجمة أسماء الصفوف
     function getGradeDisplayName(grade) {
@@ -974,6 +988,16 @@
         saveData();
     }
 
+    // تطبيق حجم الخط (تكبير/تصغير نسبي لكل نصوص الصفحة دفعة واحدة عبر متغيّر CSS واحد)
+    function applyFontSize(scale) {
+        currentFontSize = scale;
+        const container = document.getElementById('printablePage');
+        if (container) {
+            container.style.setProperty('--font-scale', scale);
+        }
+        saveData();
+    }
+
     // تحويل الأرقام وحفظ البيانات عند الكتابة
     document.addEventListener('input', function(e) {
         const target = e.target;
@@ -1182,6 +1206,7 @@
             currentFont: currentFont, // حفظ الخط النشط
             currentPageBorderStyle: currentPageBorderStyle, // حفظ نمط حد الصفحة
             currentPrintOrientation: currentPrintOrientation, // حفظ اتجاه ورقة الطباعة
+            currentFontSize: currentFontSize, // حفظ معامل حجم الخط
             tableRows: []
         };
 
@@ -1237,6 +1262,10 @@
             currentPrintOrientation = data.currentPrintOrientation || 'portrait';
             document.getElementById('printOrientationSelect').value = currentPrintOrientation;
             applyPrintOrientation(currentPrintOrientation);
+
+            currentFontSize = data.currentFontSize || '1';
+            document.getElementById('fontSizeSelect').value = currentFontSize;
+            applyFontSize(currentFontSize);
 
             activeGrades = data.activeGrades || ['grade1', 'grade2', 'grade3', 'grade4', 'grade5', 'grade6'];
             document.querySelectorAll('.grade-selector').forEach(checkbox => {
